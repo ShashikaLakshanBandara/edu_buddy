@@ -76,9 +76,9 @@ class _MemoryMeasureScreenState extends State<MemoryMeasureScreen> {
                       foregroundColor: Colors.white,
                       minimumSize: Size(
                         MediaQuery.of(context).size.width *
-                            0.9, // Set button width to 50% of screen width
+                            0.9, // Set button width to 90% of screen width
                         MediaQuery.of(context).size.width *
-                            0.1, // Set button height to 10% of screen width
+                            0.1, // Set button height to 0.1% of screen width
                       ),
                     ),
                     onPressed: () {
@@ -92,7 +92,7 @@ class _MemoryMeasureScreenState extends State<MemoryMeasureScreen> {
 
                       });
                       setState(() async {
-                        await Future.delayed(const Duration(seconds: 10));
+                        await Future.delayed(const Duration(seconds: 5));
                         Navigator.push(
                           context,
                           MaterialPageRoute(

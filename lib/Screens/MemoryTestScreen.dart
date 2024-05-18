@@ -1,7 +1,11 @@
 import 'dart:math';
 
+import 'package:edu_buddy/Screens/HomeScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:english_words/english_words.dart';
+import 'package:edu_buddy/Database/database_helper.dart';
+import 'package:sqflite/sqflite.dart';
+
 
 class MemoryTestScreen extends StatefulWidget {
   final List<String> words;
@@ -29,6 +33,15 @@ class _MemoryTestScreenState extends State<MemoryTestScreen> {
     selectedWords = List.filled(finalWords.length, false);
   }
 
+  Future<void> saveMemoryEfficiency(int mE) async {
+    final Database db = await DatabaseHelper.database;
+    await db.rawInsert('''
+          UPDATE UserDetails
+          SET memoryEfficiency = $mE
+          WHERE id = 1;
+        ''');
+  }
+
   void _showSelectedWordCount(BuildContext context) {
     int count = 0;
     for (int i = 0; i < finalWords.length; i++) {
@@ -46,8 +59,15 @@ class _MemoryTestScreenState extends State<MemoryTestScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+                saveMemoryEfficiency(count);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const HomeScreen()),
+                );
+
               },
-              child: Text('OK'),
+              child: const Text('OK'),
             ),
           ],
         );

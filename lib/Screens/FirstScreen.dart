@@ -1,5 +1,8 @@
+import 'package:edu_buddy/Screens/MemoryMeasureScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:edu_buddy/Database/database_helper.dart';
+import 'package:sqflite/sqflite.dart';
 
 
 class FirstScreen  extends StatefulWidget {
@@ -14,6 +17,14 @@ class _FirstScreenState  extends State<FirstScreen > {
   bool showButton = false;
   bool showImage = false;
 
+  Future<void> _initializeFirstTimeLoaded() async {
+    final Database db = await DatabaseHelper.database;
+    await db.rawInsert('''
+          UPDATE UserDetails
+          SET FirstTimeLoaded = 1
+          WHERE id = 1;
+        ''');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +70,13 @@ class _FirstScreenState  extends State<FirstScreen > {
                               textAlign: TextAlign.center
                           ),
                         ],
-                        onFinished: (){
+                        onFinished: () async {
+                          // Insert the initialization part here
+                          await _initializeFirstTimeLoaded();
                           setState(() {
                             showButton = true; // Show button after a delay
                             showImage = true;
                           });
-
                         },
                         totalRepeatCount: 1,
                       ),
@@ -97,8 +109,14 @@ class _FirstScreenState  extends State<FirstScreen > {
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
                   ),
-                  onPressed: () {},
-                  child: Text(
+                  onPressed: () {
+                    // Navigate to HomeScreen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => MemoryMeasureScreen()),
+                    );
+                  },
+                  child: const Text(
                       style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16
