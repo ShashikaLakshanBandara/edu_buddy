@@ -24,6 +24,33 @@ class _MemoryMeasureScreenState extends State<MemoryMeasureScreen> {
     "Loading..."
   ];
   bool showButton = true;
+  int countdown = 5;
+  Timer? _timer;
+
+  void startCountdown() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (countdown > 0) {
+        setState(() {
+          countdown--;
+        });
+      } else {
+        _timer?.cancel();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MemoryTestScreen(words: words),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -53,10 +80,10 @@ class _MemoryMeasureScreenState extends State<MemoryMeasureScreen> {
                         child: ListView(
                           children: words
                               .map((word) => Card(
-                                    child: ListTile(
-                                      title: Text(word),
-                                    ),
-                                  ))
+                            child: ListTile(
+                              title: Text(word),
+                            ),
+                          ))
                               .toList(),
                         ),
                       ),
@@ -67,6 +94,17 @@ class _MemoryMeasureScreenState extends State<MemoryMeasureScreen> {
                   height: 20,
                   child: Spacer(),
                 ),
+                Visibility(
+                  visible: !showButton,
+                  child: Text(
+                    'Time remaining: $countdown',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 Visibility(
                   visible: showButton,
                   child: ElevatedButton(
@@ -82,27 +120,14 @@ class _MemoryMeasureScreenState extends State<MemoryMeasureScreen> {
                       ),
                     ),
                     onPressed: () {
-                      setState(()  {
+                      setState(() {
                         words = generateWordPairs()
                             .take(25)
                             .map((pair) => pair.asPascalCase)
                             .toList();
                         showButton = false;
-
-
+                        startCountdown();
                       });
-                      setState(() async {
-                        await Future.delayed(const Duration(seconds: 5));
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MemoryTestScreen(
-                                words:
-                                words), // Pass words list to MemoryTestScreen
-                          ),
-                        );
-                      });
-
                     },
                     child: const Text(
                       "Start",

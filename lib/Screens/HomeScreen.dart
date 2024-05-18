@@ -5,6 +5,7 @@ import 'package:edu_buddy/Screens/MemoryMeasureScreen.dart';
 import 'package:edu_buddy/Database/database_helper.dart';
 import 'package:sqflite/sqflite.dart';
 import 'ViewShortNotes.dart';
+import 'CreateTimeTable.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -139,8 +140,20 @@ class _HomeScreenState extends State<HomeScreen> {
         title = 'Time Table';
         selectedWidget = Container(
           color: Colors.white,
-          child: const Center(
-            child: Text("Time Table", style: TextStyle(fontSize: 20)),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(onPressed: (){
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const Createtimetable()),
+                  );
+                }, child: Text('Create Time Table')),
+                ElevatedButton(onPressed: (){}, child: Text('View Time Table')),
+              ],
+            ),
           ),
         );
         break;
