@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class Createshortnotes extends StatefulWidget {
   const Createshortnotes({Key? key}) : super(key: key);
@@ -9,18 +11,54 @@ class Createshortnotes extends StatefulWidget {
   State<Createshortnotes> createState() => _CreateshortnotesState();
 }
 
+Future<bool> _requestPer(Permission permission) async {
+  AndroidDeviceInfo build = await DeviceInfoPlugin().androidInfo;
+  if (build.version.sdkInt >= 30) {
+    var re = await Permission.manageExternalStorage.request();
+    if (re.isGranted) {
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    if (await permission.isGranted) {
+      return true;
+    } else {
+      var result = await permission.request();
+      if (result.isGranted) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
+}
+
 class _CreateshortnotesState extends State<Createshortnotes> {
   TextEditingController questionController = TextEditingController();
   TextEditingController answerController = TextEditingController();
   List<String> notes = [];
   int noteCounter = 1; // Counter to keep track of notes
 
+  bool _hasPermission = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestPermission();
+  }
+
+  Future<void> _requestPermission() async {
+    _hasPermission = await _requestPer(Permission.storage);
+    setState(() {});
+  }
+
   void _addNote() {
     String question = questionController.text.trim();
     String answer = answerController.text.trim();
     if (question.isNotEmpty && answer.isNotEmpty) {
       setState(() {
-        notes.add("$noteCounter. Q:$question | A:$answer"); // Add note with counter
+        notes.add("$noteCounter. Q: $question | A: $answer"); // Add note with counter
         noteCounter++; // Increment counter
         questionController.clear();
         answerController.clear();
@@ -76,6 +114,42 @@ class _CreateshortnotesState extends State<Createshortnotes> {
     }
   }
 
+  void _showLocationPopup(BuildContext context, String location) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("New Folder Location"),
+          content: Text(location),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _createAndShowDirectory() async {
+    if (_hasPermission) {
+      // Get the external storage directory
+      Directory? directory = await getExternalStorageDirectory();
+      String? storagePath = directory?.path;
+      // Create a new directory
+      Directory newDirectory = Directory('/storage/emulated/0/EduBuddy/Short Notes/Created');
+      newDirectory.create(recursive: true).then((Directory directory) {
+        print('New directory created: ${directory.path}');
+        _showLocationPopup(context, directory.path); // Show popup with location
+      });
+    } else {
+      print("Permission is not granted");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,57 +168,55 @@ class _CreateshortnotesState extends State<Createshortnotes> {
             const SizedBox(height: 16.0),
             TextField(
               controller: answerController,
-              decoration: InputDecoration(labelText: 'Answer'),
+              decoration: const InputDecoration(labelText: 'Answer'),
             ),
-            SizedBox(height: 16.0),
+            const SizedBox(height: 16.0),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton(
                   onPressed: _addNote,
-                  child: Text('Next'),
+                  child: const Text('Next'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    await _createAndShowDirectory();
                     showDialog(
                       context: context,
                       builder: (BuildContext context) {
-                        TextEditingController fileNameController =
-                        TextEditingController();
+                        TextEditingController fileNameController = TextEditingController();
                         return AlertDialog(
-                          title: Text("Save Document"),
+                          title: const Text("Save Document"),
                           content: TextField(
                             controller: fileNameController,
-                            decoration:
-                            InputDecoration(labelText: "Enter Filename"),
+                            decoration: const InputDecoration(labelText: "Enter Filename"),
                           ),
                           actions: [
                             TextButton(
                               onPressed: () async {
-                                String fileName =
-                                fileNameController.text.trim();
+                                String fileName = fileNameController.text.trim();
                                 if (fileName.isNotEmpty) {
                                   await _saveNotes(fileName);
                                 }
                               },
-                              child: Text("OK"),
+                              child: const Text("OK"),
                             ),
                             TextButton(
                               onPressed: () {
                                 Navigator.pop(context);
                               },
-                              child: Text("Cancel"),
+                              child: const Text("Cancel"),
                             ),
                           ],
                         );
                       },
                     );
                   },
-                  child: Text('Save'),
+                  child: const Text('Save'),
                 ),
               ],
             ),
-            SizedBox(height: 16.0),
+            const SizedBox(height: 16.0),
             Expanded(
               child: ListView.builder(
                 itemCount: notes.length,
@@ -163,7 +235,7 @@ class _CreateshortnotesState extends State<Createshortnotes> {
 }
 
 void main() {
-  runApp(MaterialApp(
+  runApp(const MaterialApp(
     home: Createshortnotes(),
   ));
 }

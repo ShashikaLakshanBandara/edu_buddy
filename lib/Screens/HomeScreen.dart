@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:edu_buddy/Screens/MemoryMeasureScreen.dart';
 import 'package:edu_buddy/Database/database_helper.dart';
 import 'package:sqflite/sqflite.dart';
+import 'EditShortNotes.dart';
 import 'ViewShortNotes.dart';
 import 'CreateTimeTable.dart';
 
@@ -37,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         // Set the retrieved username to the text field
         _nameController.text = result[0]['UserName'];
+        userName = result[0]['UserName'];
       });
     }
   }
@@ -52,16 +54,86 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (currentIndex == 0) {
+      _loadUserName(); // Load the username when the home screen is built
+    }
     Widget selectedWidget;
     switch (currentIndex) {
       case 0:
         title = 'Home';
         selectedWidget = Container(
-          color: Colors.white,
-          child: const Center(
-            child: Text("Home Screen", style: TextStyle(fontSize: 20)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.3),
+                spreadRadius: 2,
+                blurRadius: 5,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          userName,
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          "Dashboard",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundImage: AssetImage('assets/images/vectors/profilePic.jpg'),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DashboardItem(title: 'Total Short Notes', value: '24'),
+                    DashboardItem(title: 'Total Spend Time', value: '24 hours'),
+                    DashboardItem(title: 'Total Hard Question', value: '50'),
+                    DashboardItem(title: 'Total Normal Question', value: '50'),
+                    DashboardItem(title: 'Total Easy Question', value: '50'),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
+
         break;
       case 1:
         title = 'Notes';
@@ -71,11 +143,13 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Container(
                 color: Colors.deepOrange,
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("All Short Notes", style: TextStyle(color: Colors.white, fontSize: 18)),
+                    Text("All Short Notes",
+                        style: TextStyle(color: Colors.white, fontSize: 18)),
                     ElevatedButton(
                       onPressed: () {
                         Navigator.push(
@@ -85,7 +159,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
                       child: Text("Create"),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green),
                     ),
                   ],
                 ),
@@ -114,14 +189,50 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: TextStyle(fontSize: 16),
                               ),
                               onTap: () {
-                                // Add logic to handle tapping on a file
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => ViewShortNotes(filePath: textFiles[index]),
+                                    builder: (context) => ViewShortNotes(
+                                        filePath: textFiles[index]),
                                   ),
                                 );
                               },
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.edit, color: Colors.blue),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => EditShortNotes(
+                                              filePath: textFiles[index]),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () async {
+                                      // Add logic to handle deleting a file
+                                      // Add logic to handle deleting a file
+                                      String filePath =
+                                          '/storage/emulated/0/EduBuddy/Short Notes/Created/${textFiles[index]}';
+                                      File file = File(filePath);
+
+                                      // Check if the file exists before attempting to delete it
+                                      if (await file.exists()) {
+                                        await file.delete();
+                                        setState(() {
+                                          // Refresh the list by removing the deleted file
+                                          textFiles.removeAt(index);
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
                             );
                           },
                         );
@@ -135,6 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         );
+
         break;
       case 2:
         title = 'Time Table';
@@ -144,14 +256,17 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ElevatedButton(onPressed: (){
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const Createtimetable()),
-                  );
-                }, child: Text('Create Time Table')),
-                ElevatedButton(onPressed: (){}, child: Text('View Time Table')),
+                ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const Createtimetable()),
+                      );
+                    },
+                    child: Text('Create Time Table')),
+                ElevatedButton(
+                    onPressed: () {}, child: Text('View Time Table')),
               ],
             ),
           ),
@@ -162,23 +277,16 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedWidget = Container(
           color: Colors.white,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Text(
-                  "Settings",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 30,
-                  ),
-                ),
-              ),
+
               Padding(
                 padding: const EdgeInsets.all(20.0),
-                child: TextField(
+                child: TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Enter your name',
+                    border: OutlineInputBorder(),
                   ),
                 ),
               ),
@@ -187,32 +295,47 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Get the text from the text field
                   String userInput = _nameController.text;
                   // Assign it to the userName variable
-                  userName = userInput;
+                  setState(() {
+                    userName = userInput;
+                  });
                   // Call saveName method if needed
                   await saveName(userName);
                 },
-                child: const Text('Save'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                ),
+                child: Text(
+                  'Save',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.white,
+                  ),
+                ),
               ),
               Container(
                 color: Colors.cyan,
-                width: double.infinity,
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: TextButton(
-                    child: const Text('Change Memory Efficiency'),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const MemoryMeasureScreen()),
-                      );
-                    },
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MemoryMeasureScreen(),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Change Memory Efficiency',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              )
+              ),
             ],
           ),
         );
+
         break;
 
       default:
@@ -270,8 +393,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<List<String>> _getTextFiles() async {
-    Directory directory = Directory(
-        '/storage/emulated/0/EduBuddy/Short Notes/Created');
+    Directory directory =
+        Directory('/storage/emulated/0/EduBuddy/Short Notes/Created');
     List<FileSystemEntity> fileList = directory.listSync();
     List<String> textFiles = [];
     for (FileSystemEntity entity in fileList) {
@@ -282,3 +405,42 @@ class _HomeScreenState extends State<HomeScreen> {
     return textFiles;
   }
 }
+
+class DashboardItem extends StatelessWidget {
+  final String title;
+  final String value;
+
+  const DashboardItem({
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Colors.black54,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

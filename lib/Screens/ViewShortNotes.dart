@@ -34,10 +34,20 @@ class _ViewShortNotesState extends State<ViewShortNotes> {
 
       // Create the table based on the file name
       tableName = _sanitizeTableName(widget.filePath.split('/').last.split('.').first);
-      await _createTable();
+      bool tableExists = await _checkTableExists(tableName);
+      if (!tableExists) {
+        await _createTable();
+      }
 
-      // Load file and insert contents into the database
-      await _loadFile();
+      // Check if the table already has data
+      final tableData = await _database.query(tableName);
+      if (tableData.isEmpty) {
+        // Load file and insert contents into the database if table is empty
+        await _loadFile();
+      } else {
+        // Load data from the database into questionsAndAnswers
+        _loadDataFromDatabase(tableData);
+      }
 
       setState(() {
         isLoading = false;
@@ -50,13 +60,20 @@ class _ViewShortNotesState extends State<ViewShortNotes> {
     }
   }
 
+  Future<bool> _checkTableExists(String tableName) async {
+    final result = await _database.rawQuery('''
+    SELECT name FROM sqlite_master WHERE type='table' AND name=?
+  ''', [tableName]);
+
+    return result.isNotEmpty;
+  }
+
   Future<Database> _initDatabase() async {
     String path = join(await getDatabasesPath(), 'edubuddyDatabase.db');
     return openDatabase(path, version: 1);
   }
 
   String _sanitizeTableName(String name) {
-    // Sanitize the table name to avoid SQL injection and invalid characters
     return name.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_');
   }
 
@@ -74,16 +91,14 @@ class _ViewShortNotesState extends State<ViewShortNotes> {
   Future<void> _loadFile() async {
     try {
       String contents = await _readFile('/storage/emulated/0/EduBuddy/Short Notes/Created/' + widget.filePath);
-      print('File contents: $contents');
       List<String> lines = contents.split('\n');
       int questionNumber = 1;
       for (var line in lines) {
-        print('Processing line: $line');
         if (line.isNotEmpty) {
           var parts = line.split(' | ');
           if (parts.length == 2) {
-            var questionPart = parts[0].split(': ')[1].trim(); // Extract question part
-            var answerPart = parts[1].split(': ')[1].trim(); // Extract answer part
+            var questionPart = parts[0].split(': ')[1].trim();
+            var answerPart = parts[1].split(': ')[1].trim();
             questionsAndAnswers.add({'question': questionPart, 'answer': answerPart});
             await _database.insert(
               tableName,
@@ -93,7 +108,7 @@ class _ViewShortNotesState extends State<ViewShortNotes> {
                 'Answer': answerPart,
                 'State': ''
               },
-              conflictAlgorithm: ConflictAlgorithm.replace,
+              conflictAlgorithm: ConflictAlgorithm.ignore, // Use ignore to not replace existing rows
             );
             questionNumber++;
           }
@@ -119,6 +134,15 @@ class _ViewShortNotesState extends State<ViewShortNotes> {
     } catch (e) {
       return 'Error reading file: $e';
     }
+  }
+
+  void _loadDataFromDatabase(List<Map<String, dynamic>> tableData) {
+    questionsAndAnswers = tableData.map((row) {
+      return {
+        'question': row['Question'] as String,
+        'answer': row['Answer'] as String,
+      };
+    }).toList();
   }
 
   void _showAnswer() {
@@ -154,7 +178,6 @@ class _ViewShortNotesState extends State<ViewShortNotes> {
         whereArgs: [currentQuestionIndex + 1],
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
-      print('User reacted with: $reaction');
     } catch (e) {
       print('Error updating reaction: $e');
     }

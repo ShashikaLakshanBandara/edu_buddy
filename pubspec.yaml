@@ -33,6 +33,7 @@ dependencies:
 
   permission_handler: ^11.3.1
   device_info_plus: ^9.0.2
+  flutter_feather_icons: ^2.0.0+1
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -78,6 +79,7 @@ flutter:
   assets:
     - assets/images/
     - assets/images/vectors/brainTest.png
+    - assets/images/vectors/profilePic.jpg
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

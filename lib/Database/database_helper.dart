@@ -37,15 +37,27 @@ class DatabaseHelper {
           INSERT INTO UserDetails (UserName, memoryEfficiency, usage, FirstTimeLoaded)
           VALUES ('***', 0, 0, 0)
         ''');
-        await db.execute('''
-          CREATE TABLE Timetable (
-            id INTEGER PRIMARY KEY,
-            dayOfWeek TEXT,
-            taskName TEXT,
-            startTime TEXT,
-            duration INTEGER
-          )
-        ''');
+
+        List<String> weekdays = [
+          'Sunday',
+          'Monday',
+          'Tuesday',
+          'Wednesday',
+          'Thursday',
+          'Friday',
+          'Saturday'
+        ];
+
+        for (String day in weekdays) {
+          await db.execute('''
+            CREATE TABLE $day (
+              id INTEGER PRIMARY KEY,
+              startingTime TEXT,
+              endingTime TEXT,
+              subject TEXT
+            )
+          ''');
+        }
       },
       version: 1,
     );
@@ -62,4 +74,6 @@ class DatabaseHelper {
       )
     ''');
   }
+
+
 }
