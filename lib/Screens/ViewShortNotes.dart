@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+
+import '../Database/database_helper.dart';
 
 class ViewShortNotes extends StatefulWidget {
   final String filePath;
@@ -20,12 +23,58 @@ class _ViewShortNotesState extends State<ViewShortNotes> {
   String errorMessage = '';
   late Database _database;
   String tableName = '';
+  Timer? _timer;
+  late DateTime _startTime;
+  late DateTime _endTime;
+  late double dbTime;
+  late double timeUsage;
 
   @override
   void initState() {
     super.initState();
     _initializeDatabaseAndLoadFile();
+    _startTime = DateTime.now();
+    loadCurrentUsageTime();
+
+
   }
+  @override
+  void dispose() {
+    // Clean up code here
+    super.dispose();
+    calculateTimeCount();
+    print("closed");
+  }
+
+  Future<void> loadCurrentUsageTime() async {
+    final Database db = await DatabaseHelper.database;
+    List<Map<String, dynamic>> result = await db.query('UserDetails',
+        columns: ['usage'], where: 'id = ?', whereArgs: [1]);
+
+    if (result.isNotEmpty) {
+      setState(() {
+        dbTime = result[0]['usage'];
+      });
+    }
+  }
+
+  void calculateTimeCount() {
+    _endTime = DateTime.now();
+    timeUsage = _endTime.difference(_startTime).inSeconds.toDouble();
+    print(dbTime);
+    saveTimeUsage(dbTime+timeUsage);
+
+  }
+
+  Future<void> saveTimeUsage(double timeUsage) async {
+    final Database db = await DatabaseHelper.database;
+    await db.rawInsert('''
+          UPDATE UserDetails
+          SET usage = '$timeUsage'
+          WHERE id = 1;
+        ''');
+  }
+
 
   Future<void> _initializeDatabaseAndLoadFile() async {
     try {
@@ -90,7 +139,7 @@ class _ViewShortNotesState extends State<ViewShortNotes> {
 
   Future<void> _loadFile() async {
     try {
-      String contents = await _readFile('/storage/emulated/0/EduBuddy/Short Notes/Created/' + widget.filePath);
+      String contents = await _readFile('/storage/emulated/0/EduBuddy/Short Notes/Created/${widget.filePath}');
       List<String> lines = contents.split('\n');
       int questionNumber = 1;
       for (var line in lines) {
@@ -190,35 +239,35 @@ class _ViewShortNotesState extends State<ViewShortNotes> {
         title: Text(widget.filePath.split('/').last.split('.').first),
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : errorMessage.isNotEmpty
           ? Center(child: Text(errorMessage))
           : Padding(
-        padding: EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Question ${currentQuestionIndex + 1} / ${questionsAndAnswers.length}:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Text(
               questionsAndAnswers[currentQuestionIndex]['question']!,
-              style: TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 16),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _showAnswer,
-              child: Text('Show Answer'),
+              child: const Text('Show Answer'),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             if (currentAnswer.isNotEmpty) ...[
               Text(
                 'Answer: $currentAnswer',
-                style: TextStyle(fontSize: 16, color: Colors.blue),
+                style: const TextStyle(fontSize: 16, color: Colors.blue),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -236,8 +285,13 @@ class _ViewShortNotesState extends State<ViewShortNotes> {
                   ),
                 ],
               ),
+              const SizedBox(
+                height: 10,
+              ),
+
+              const Center(child: Text("Also provide the remember level of this answer!"))
             ],
-            Spacer(),
+            const Spacer(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -256,4 +310,6 @@ class _ViewShortNotesState extends State<ViewShortNotes> {
       ),
     );
   }
+
+
 }

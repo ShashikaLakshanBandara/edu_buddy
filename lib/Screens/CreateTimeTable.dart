@@ -1,80 +1,77 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:edu_buddy/Database/database_helper.dart';
 
-class Createtimetable extends StatefulWidget {
-  const Createtimetable({Key? key}) : super(key: key);
+class CreateTimetable extends StatefulWidget {
+  const CreateTimetable({Key? key}) : super(key: key);
 
   @override
-  State<Createtimetable> createState() => _CreatetimetableState();
+  State<CreateTimetable> createState() => _CreateTimetableState();
 }
 
-class _CreatetimetableState extends State<Createtimetable> {
-  List<String> freeTimePeriod = [];
-  double totalFreeTime = 0.0;
-
-  TextEditingController subjectCounts = TextEditingController();
-
-  final List<String> _daysOfWeek = [
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday'
-  ];
-
-  TimeOfDay? startingTime;
-  TimeOfDay? endingTime;
-
-  Future<void> _selectStartingTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        startingTime = picked;
-      });
-    }
-  }
-
-  Future<void> _selectEndingTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        endingTime = picked;
-      });
-    }
-  }
-
+class _CreateTimetableState extends State<CreateTimetable> {
+  final TextEditingController _subjectController = TextEditingController();
+  TimeOfDay? _startingTime;
+  TimeOfDay? _endingTime;
   String? _selectedDay;
+  final Map<String, List<Map<String, dynamic>>> _timetableData = {};
+  late DatabaseHelper _databaseHelper; // Added
 
-  String getFormattedTime(TimeOfDay? time) {
-    if (time == null) {
-      return '';
-    }
-    final hours = time.hour.toString().padLeft(2, '0');
-    final minutes = time.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
+  @override
+  void initState() {
+    super.initState();
+    _databaseHelper = DatabaseHelper(); // Initialize DatabaseHelper
+    _initializeDatabase();
   }
 
-  List<TextEditingController> _subjectControllers = [];
-  List<Widget> _subjectFields = [];
+  Future<void> _initializeDatabase() async {
+    await DatabaseHelper.initDatabase(); // Ensure database is initialized
+  }
 
-  void _generateSubjectFields(int count) {
-    _subjectControllers = List.generate(count, (index) => TextEditingController());
-    _subjectFields = List.generate(count, (index) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: TextField(
-          controller: _subjectControllers[index],
-          decoration: InputDecoration(labelText: 'Subject ${index + 1}'),
-        ),
-      );
-    });
+  Future<void> _selectTime(BuildContext context, bool isStartingTime) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStartingTime) {
+          _startingTime = picked;
+        } else {
+          _endingTime = picked;
+        }
+      });
+    }
+  }
+
+  void _saveTask() {
+    if (_selectedDay != null && _startingTime != null && _endingTime != null) {
+      final taskData = {
+        'day': _selectedDay,
+        'startingTime': _formatTimeOfDay(_startingTime!),
+        'endingTime': _formatTimeOfDay(_endingTime!),
+        'task': _subjectController.text,
+      };
+      setState(() {
+        if (_timetableData.containsKey(_selectedDay)) {
+          _timetableData[_selectedDay]!.add(taskData);
+        } else {
+          _timetableData[_selectedDay!] = [taskData];
+        }
+        _startingTime = null;
+        _endingTime = null;
+        _subjectController.clear();
+      });
+
+      // Save to database
+      DatabaseHelper.insertTimetable(taskData);
+    }
+  }
+
+  String _formatTimeOfDay(TimeOfDay timeOfDay) {
+    final now = DateTime.now();
+    final dateTime = DateTime(now.year, now.month, now.day, timeOfDay.hour, timeOfDay.minute);
+    return DateFormat.Hm().format(dateTime);
   }
 
   @override
@@ -82,120 +79,91 @@ class _CreatetimetableState extends State<Createtimetable> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Create Time Table'),
+          title: const Text('Create Timetable'),
         ),
         body: SingleChildScrollView(
           child: Column(
             children: [
               DropdownButton<String>(
-                hint: Text('Select a day'),
+                hint: const Text('Select Day'),
                 value: _selectedDay,
-                items: _daysOfWeek.map((String day) {
-                  return DropdownMenuItem<String>(
-                    value: day,
-                    child: Text(day),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
+                onChanged: (String? value) {
                   setState(() {
-                    _selectedDay = newValue;
+                    _selectedDay = value;
                   });
                 },
+                items: <String>[
+                  'Monday',
+                  'Tuesday',
+                  'Wednesday',
+                  'Thursday',
+                  'Friday',
+                  'Saturday',
+                  'Sunday'
+                ].map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton(
-                    onPressed: () => _selectStartingTime(context),
-                    child: Text(startingTime != null
-                        ? getFormattedTime(startingTime)
-                        : 'Starting Time'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => _selectEndingTime(context),
-                    child: Text(endingTime != null
-                        ? getFormattedTime(endingTime)
-                        : 'Ending Time'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      final String startTime = getFormattedTime(startingTime);
-                      final String endTime = getFormattedTime(endingTime);
-                      if (startTime.isNotEmpty && endTime.isNotEmpty) {
-                        _calculateTotalFreeTime(startingTime!, endingTime!);
-                        freeTimePeriod.add('$startTime-$endTime');
-                        print(freeTimePeriod);
-                      }
-                    },
-                    child: const Text('Add Time Period'),
-                  ),
-                ],
-              ),
-              Text('Total Free Time: ${totalFreeTime.toStringAsFixed(2)} hours'),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: subjectCounts,
-                      decoration: const InputDecoration(labelText: 'Subject Counts'),
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      final int count = int.tryParse(subjectCounts.text) ?? 0;
-                      if (count > 0) {
-                        setState(() {
-                          _generateSubjectFields(count);
-                        });
-                      }
-                    },
-                    child: const Text('Add'),
-                  ),
-                ],
-              ),
-              ..._subjectFields,
-              if (_subjectFields.isNotEmpty)
-                ElevatedButton(
-                  onPressed: () {
-                    for (var controller in _subjectControllers) {
-                      print('Subject: ${controller.text}');
-                    }
-                    _organizeTable();
-                    // Handle further actions with the subject names here
-                  },
-                  child: const Text('OK'),
+              ListTile(
+                title: Text('Starting Time: ${_startingTime != null ? _startingTime!.format(context) : ''}'),
+                trailing: IconButton(
+                  icon: Icon(Icons.access_time),
+                  onPressed: () => _selectTime(context, true),
                 ),
+              ),
+              ListTile(
+                title: Text('Ending Time: ${_endingTime != null ? _endingTime!.format(context) : ''}'),
+                trailing: IconButton(
+                  icon: Icon(Icons.access_time),
+                  onPressed: () => _selectTime(context, false),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextField(
+                  controller: _subjectController,
+                  decoration: InputDecoration(labelText: 'Task'),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: _saveTask,
+                child: const Text('Save Task'),
+              ),
+              SizedBox(height: 20),
+              ..._timetableData.entries.map((entry) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.key,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: entry.value.length,
+                      itemBuilder: (context, index) {
+                        final task = entry.value[index];
+                        return ListTile(
+                          title: Text('${task['task']}'),
+                          subtitle: Text('${task['startingTime']} - ${task['endingTime']}'),
+                        );
+                      },
+                    ),
+                    Divider(),
+                  ],
+                );
+              }).toList(),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  void _organizeTable() {
-    double startingTime = 8;
-    double endingTime = 10;
-
-    double timeForOneSubject = totalFreeTime/double.parse(subjectCounts.text);
-    for(double timeDuration = 0.0; timeDuration<=(timeForOneSubject*60);timeDuration+=1){
-
-
-
-
-      //print('Duration : $timeDuration');
-    }
-
-
-    //print('timefor one subject= $timeForOneSubject');
-  }
-
-  void _calculateTotalFreeTime(TimeOfDay startTime, TimeOfDay endTime) {
-    final int startMinutes = startTime.hour * 60 + startTime.minute;
-    final int endMinutes = endTime.hour * 60 + endTime.minute;
-    final double differenceInMinutes = (endMinutes - startMinutes).toDouble();
-    setState(() {
-      totalFreeTime += differenceInMinutes / 60; // Convert minutes to hours
-      print('Total free time : $totalFreeTime');
-    });
-  }
+void main() {
+  runApp(CreateTimetable());
 }

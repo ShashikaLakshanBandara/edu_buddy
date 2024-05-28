@@ -28,36 +28,37 @@ class DatabaseHelper {
           CREATE TABLE UserDetails (
             id INTEGER PRIMARY KEY,
             UserName TEXT,
-            memoryEfficiency INTEGER,
-            usage INTEGER,
+            memoryEfficiency DOUBLE,
+            usage DOUBLE,
             FirstTimeLoaded INTEGER
           )
         ''');
         await db.rawInsert('''
           INSERT INTO UserDetails (UserName, memoryEfficiency, usage, FirstTimeLoaded)
-          VALUES ('***', 0, 0, 0)
+          VALUES ('No name inserted', 0, 0, 0)
         ''');
 
-        List<String> weekdays = [
-          'Sunday',
-          'Monday',
-          'Tuesday',
-          'Wednesday',
-          'Thursday',
-          'Friday',
-          'Saturday'
-        ];
+        // Create timetable table
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS Timetable (
+            id INTEGER PRIMARY KEY,
+            day TEXT,
+            startingTime TEXT,
+            endingTime TEXT,
+            task TEXT
+          )
+        ''');
 
-        for (String day in weekdays) {
-          await db.execute('''
-            CREATE TABLE $day (
-              id INTEGER PRIMARY KEY,
-              startingTime TEXT,
-              endingTime TEXT,
-              subject TEXT
-            )
-          ''');
-        }
+        // Create timetable table
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS Timetable (
+            id INTEGER PRIMARY KEY,
+            day TEXT,
+            startingTime TEXT,
+            endingTime TEXT,
+            task TEXT
+          )
+        ''');
       },
       version: 1,
     );
@@ -75,5 +76,38 @@ class DatabaseHelper {
     ''');
   }
 
+  // Insert timetable data
+  static Future<int> insertTimetable(Map<String, dynamic> timetableData) async {
+    final db = await database;
+    return await db.insert('Timetable', timetableData);
+  }
+
+  // Get all timetable data
+  static Future<List<Map<String, dynamic>>> getAllTimetable() async {
+    final db = await database;
+    return await db.query('Timetable');
+  }
+
+  // Get timetable data for a specific day
+  static Future<List<Map<String, dynamic>>> getTimetableForDay(String day) async {
+    final db = await database;
+    return await db.query('Timetable', where: 'day = ?', whereArgs: [day]);
+  }
+
+  // Delete all timetable data
+  static Future<int> deleteAllTimetable() async {
+    final db = await database;
+    return await db.delete('Timetable');
+  }
+
+  static Future<void> updateTimetable(Map<String, dynamic> updatedTimetableEntry) async {
+    final db = await database;
+    await db.update(
+      'Timetable',
+      updatedTimetableEntry,
+      where: 'id = ?',
+      whereArgs: [updatedTimetableEntry['id']],
+    );
+  }
 
 }

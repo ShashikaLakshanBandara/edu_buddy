@@ -7,9 +7,16 @@ import 'package:sqflite/sqflite.dart';
 import 'EditShortNotes.dart';
 import 'ViewShortNotes.dart';
 import 'CreateTimeTable.dart';
+import 'ViewTimeTable.dart';
+
+import 'package:file_picker/file_picker.dart';
+
+
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -21,24 +28,76 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int currentIndex = 0;
   String title = "";
+  double totalSpendTime = 0.0;
+
+  bool _hasPermission = false;
+
+  Future<bool> _requestPer(Permission permission) async {
+    AndroidDeviceInfo build = await DeviceInfoPlugin().androidInfo;
+    if (build.version.sdkInt >= 30) {
+      var re = await Permission.manageExternalStorage.request();
+      if (re.isGranted) {
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      if (await permission.isGranted) {
+        return true;
+      } else {
+        var result = await permission.request();
+        if (result.isGranted) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     // Call the method to load existing username when Settings screen is opened
-    _loadUserName();
+    _loadDetails();
+    _requestPermission();
+  }
+  Future<void> copyFile(String sourcePath, String destinationPath) async {
+    try {
+      final sourceFile = File(sourcePath);
+      final destinationFile = File(destinationPath);
+
+      if (await destinationFile.exists()) {
+        // Handle existing file (e.g., prompt user for overwrite)
+        print('Destination file already exists. Overwrite?');
+      }
+
+      await sourceFile.copy(destinationPath);
+      print('File copied successfully!');
+    } on FileSystemException catch (e) {
+      print('Error copying file: $e');
+      // Handle errors (e.g., insufficient permissions)
+    }
   }
 
-  Future<void> _loadUserName() async {
+
+  Future<void> _requestPermission() async {
+    _hasPermission = await _requestPer(Permission.storage);
+    setState(() {});
+  }
+
+  Future<void> _loadDetails() async {
     final Database db = await DatabaseHelper.database;
     List<Map<String, dynamic>> result = await db.query('UserDetails',
-        columns: ['UserName'], where: 'id = ?', whereArgs: [1]);
+        columns: ['UserName', 'usage'], where: 'id = ?', whereArgs: [1]);
 
     if (result.isNotEmpty) {
       setState(() {
         // Set the retrieved username to the text field
         _nameController.text = result[0]['UserName'];
         userName = result[0]['UserName'];
+        double usageInSeconds = result[0]['usage'] / (60 * 60);
+        totalSpendTime = double.parse(usageInSeconds.toStringAsFixed(3));
       });
     }
   }
@@ -55,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     if (currentIndex == 0) {
-      _loadUserName(); // Load the username when the home screen is built
+      _loadDetails(); // Load the username when the home screen is built
     }
     Widget selectedWidget;
     switch (currentIndex) {
@@ -70,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Colors.grey.withOpacity(0.3),
                 spreadRadius: 2,
                 blurRadius: 5,
-                offset: Offset(0, 3),
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -79,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Welcome',
                   style: TextStyle(
                     fontSize: 24,
@@ -95,14 +154,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Text(
                           userName,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
                         ),
-                        SizedBox(height: 10),
-                        Text(
+                        const SizedBox(height: 10),
+                        const Text(
                           "Dashboard",
                           style: TextStyle(
                             fontSize: 24,
@@ -112,18 +171,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 30,
-                      backgroundImage: AssetImage('assets/images/vectors/profilePic.jpg'),
+                      backgroundImage:
+                          AssetImage('assets/images/vectors/profilePic.jpg'),
                     ),
                   ],
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DashboardItem(title: 'Total Short Notes', value: '24'),
-                    DashboardItem(title: 'Total Spend Time', value: '24 hours'),
+                    DashboardItem(
+                        title: 'Total Spend Time(hours)',
+                        value: '$totalSpendTime'),
                     DashboardItem(title: 'Total Hard Question', value: '50'),
                     DashboardItem(title: 'Total Normal Question', value: '50'),
                     DashboardItem(title: 'Total Easy Question', value: '50'),
@@ -142,25 +204,53 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             children: [
               Container(
-                color: Colors.deepOrange,
+                color: Colors.blue,
                 padding:
                     const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("All Short Notes",
-                        style: TextStyle(color: Colors.white, fontSize: 18)),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final result = await FilePicker.platform.pickFiles(
+                          allowMultiple: false, // Only allow single file selection
+                          type: FileType.custom, // Filter for text files only
+                          allowedExtensions: ['txt'],
+                        );
+
+                        if (result != null) {
+                          final platformFile = result.files.single;
+                          final filePath = platformFile.path!; // Get the selected file path
+
+                          // Call the copy function to copy the file
+                          await copyFile(filePath, '/storage/emulated/0/EduBuddy/Short Notes/Created/${platformFile.name}');
+                        } else {
+                          // Handle case where user cancels or no file is selected
+                          print('No file selected.');
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black26),
+                      child: const Text(
+                        "Import Short Note",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
                     ElevatedButton(
                       onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const Createshortnotes()),
+                            builder: (context) => const Createshortnotes(),
+                          ),
                         );
                       },
-                      child: Text("Create"),
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green),
+                          backgroundColor: Colors.black26),
+                      child: const Text(
+                        "Create Short Note",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
@@ -170,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   future: _getTextFiles(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(child: CircularProgressIndicator());
+                      return const Center(child: CircularProgressIndicator());
                     } else if (snapshot.hasError) {
                       return Text('Error: ${snapshot.error}');
                     } else {
@@ -186,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             return ListTile(
                               title: Text(
                                 textFiles[index],
-                                style: TextStyle(fontSize: 16),
+                                style: const TextStyle(fontSize: 16),
                               ),
                               onTap: () {
                                 Navigator.push(
@@ -201,7 +291,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: Icon(Icons.edit, color: Colors.blue),
+                                    icon: const Icon(Icons.edit,
+                                        color: Colors.blue),
                                     onPressed: () {
                                       Navigator.push(
                                         context,
@@ -213,7 +304,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     },
                                   ),
                                   IconButton(
-                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    icon: const Icon(Icons.delete,
+                                        color: Colors.red),
                                     onPressed: () async {
                                       // Add logic to handle deleting a file
                                       // Add logic to handle deleting a file
@@ -237,7 +329,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         );
                       } else {
-                        return Center(child: Text('No text files found'));
+                        return const Center(child: Text('No text files found'));
                       }
                     }
                   },
@@ -261,12 +353,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => const Createtimetable()),
+                            builder: (context) => const CreateTimetable()),
                       );
                     },
-                    child: Text('Create Time Table')),
+                    child: const Text('Create Time Table')),
                 ElevatedButton(
-                    onPressed: () {}, child: Text('View Time Table')),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ViewTimeTable()),
+                      );
+                    },
+                    child: const Text('View Time Table')),
               ],
             ),
           ),
@@ -279,12 +378,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-
               Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: TextFormField(
                   controller: _nameController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Enter your name',
                     border: OutlineInputBorder(),
                   ),
@@ -304,7 +402,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                 ),
-                child: Text(
+                child: const Text(
                   'Save',
                   style: TextStyle(
                     fontSize: 18,
@@ -319,11 +417,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => MemoryMeasureScreen(),
+                        builder: (context) => const MemoryMeasureScreen(),
                       ),
                     );
                   },
-                  child: Text(
+                  child: const Text(
                     'Change Memory Efficiency',
                     style: TextStyle(
                       fontSize: 18,
@@ -424,7 +522,7 @@ class DashboardItem extends StatelessWidget {
         children: [
           Text(
             title,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
               color: Colors.black87,
@@ -432,7 +530,7 @@ class DashboardItem extends StatelessWidget {
           ),
           Text(
             value,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
               color: Colors.black54,
@@ -443,4 +541,3 @@ class DashboardItem extends StatelessWidget {
     );
   }
 }
-

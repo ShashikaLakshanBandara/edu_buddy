@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 
 class Createshortnotes extends StatefulWidget {
   const Createshortnotes({Key? key}) : super(key: key);
@@ -11,28 +9,7 @@ class Createshortnotes extends StatefulWidget {
   State<Createshortnotes> createState() => _CreateshortnotesState();
 }
 
-Future<bool> _requestPer(Permission permission) async {
-  AndroidDeviceInfo build = await DeviceInfoPlugin().androidInfo;
-  if (build.version.sdkInt >= 30) {
-    var re = await Permission.manageExternalStorage.request();
-    if (re.isGranted) {
-      return true;
-    } else {
-      return false;
-    }
-  } else {
-    if (await permission.isGranted) {
-      return true;
-    } else {
-      var result = await permission.request();
-      if (result.isGranted) {
-        return true;
-      } else {
-        return false;
-      }
-    }
-  }
-}
+
 
 class _CreateshortnotesState extends State<Createshortnotes> {
   TextEditingController questionController = TextEditingController();
@@ -45,13 +22,8 @@ class _CreateshortnotesState extends State<Createshortnotes> {
   @override
   void initState() {
     super.initState();
-    _requestPermission();
   }
 
-  Future<void> _requestPermission() async {
-    _hasPermission = await _requestPer(Permission.storage);
-    setState(() {});
-  }
 
   void _addNote() {
     String question = questionController.text.trim();
